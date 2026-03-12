@@ -1,7 +1,7 @@
 // src/components/JobCard.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Trash2, ExternalLink } from 'lucide-react';
@@ -9,6 +9,7 @@ import JobOutputTabs from '@/components/JobOutputTabs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Image from 'next/image';
+import confetti from 'canvas-confetti';
 
 interface Job {
     _id: string;
@@ -29,12 +30,31 @@ function timeAgo(date: string) {
     return `${Math.floor(hours / 24)}d ago`;
 }
 
+// #7 — Elapsed time since job was created
+function useElapsed(createdAt: string, active: boolean) {
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        if (!active) return;
+        const start = new Date(createdAt).getTime();
+        const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000));
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [createdAt, active]);
+    return elapsed;
+}
+
+function formatElapsed(s: number) {
+    if (s < 60) return `${s}s`;
+    return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
 function StatusBadge({ status }: { status: string }) {
     const map: Record<string, { label: string; className: string }> = {
-        completed: { label: '✅ Completed', className: 'bg-green-100 text-green-800 border-green-200' },
-        failed: { label: '❌ Failed', className: 'bg-red-100 text-red-800 border-red-200' },
-        processing: { label: '⏳ Processing', className: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-        pending: { label: '🕐 Pending', className: 'bg-slate-100 text-slate-700 border-slate-200' },
+        completed: { label: '✅ Completed', className: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400' },
+        failed: { label: '❌ Failed', className: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400' },
+        processing: { label: '⏳ Processing', className: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400' },
+        pending: { label: '🕐 Pending', className: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300' },
     };
     const { label, className } = map[status] ?? { label: status, className: '' };
     return (
@@ -48,7 +68,11 @@ export default function JobCard({ job }: { job: Job }) {
     const [meta, setMeta] = useState<{ title?: string; thumbnail?: string; author?: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const prevStatus = useRef(job.status);
     const router = useRouter();
+
+    const isActive = job.status === 'pending' || job.status === 'processing';
+    const elapsed = useElapsed(job.createdAt, isActive);
 
     // Fetch YouTube thumbnail + title
     useEffect(() => {
@@ -57,6 +81,20 @@ export default function JobCard({ job }: { job: Job }) {
             .then((d) => { if (d.title) setMeta(d); })
             .catch(() => { });
     }, [job.inputUrl]);
+
+    // #17 — Confetti burst when job transitions to completed
+    useEffect(() => {
+        if (prevStatus.current !== 'completed' && job.status === 'completed') {
+            confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'],
+            });
+            setExpanded(true); // auto-expand outputs too
+        }
+        prevStatus.current = job.status;
+    }, [job.status]);
 
     const handleDelete = async () => {
         if (!confirm('Delete this job?')) return;
@@ -98,14 +136,15 @@ export default function JobCard({ job }: { job: Job }) {
                             {meta?.author && (
                                 <p className="text-xs text-muted-foreground mt-0.5">{meta.author}</p>
                             )}
+                            {/* #13 — Open in YouTube */}
                             <a
                                 href={job.inputUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 mt-0.5 truncate max-w-xs"
+                                className="text-xs text-blue-500 hover:underline flex items-center gap-0.5 mt-0.5"
                             >
                                 <ExternalLink className="w-3 h-3 shrink-0" />
-                                {job.inputUrl}
+                                Open in YouTube
                             </a>
                         </div>
 
@@ -123,7 +162,15 @@ export default function JobCard({ job }: { job: Job }) {
                         </div>
                     </div>
 
-                    <p className="text-xs text-muted-foreground mt-1">{timeAgo(job.createdAt)}</p>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                        <p className="text-xs text-muted-foreground">{timeAgo(job.createdAt)}</p>
+                        {/* #7 — Elapsed time while processing */}
+                        {isActive && (
+                            <p className="text-xs text-yellow-600 dark:text-yellow-400 font-mono">
+                                ⏱ {formatElapsed(elapsed)}
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -147,7 +194,7 @@ export default function JobCard({ job }: { job: Job }) {
                         </button>
                     ) : (
                         <>
-                            <JobOutputTabs outputs={job.outputs} />
+                            <JobOutputTabs outputs={job.outputs} jobId={job._id} />
                             <button
                                 className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-3"
                                 onClick={() => setExpanded(false)}

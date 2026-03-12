@@ -5,16 +5,13 @@ import dbConnect from '@/lib/db';
 import Job from '@/models/Job';
 import InputForm from '@/components/InputForm';
 import JobPoller from '@/components/JobPoller';
-import JobCard from '@/components/JobCard';
+import DashboardSorter from '@/components/DashboardSorter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { VideoIcon } from 'lucide-react';
 
 export default async function DashboardPage() {
   const { userId } = await auth();
-
-  if (!userId) {
-    redirect('/sign-in');
-  }
+  if (!userId) redirect('/sign-in');
 
   await dbConnect();
   const rawJobs = await Job.find({ userId })
@@ -22,7 +19,6 @@ export default async function DashboardPage() {
     .limit(20)
     .lean();
 
-  // Serialize for client components (no _id ObjectId issues)
   const userJobs = rawJobs.map((j: any) => ({
     _id: j._id.toString(),
     inputUrl: j.inputUrl,
@@ -45,7 +41,7 @@ export default async function DashboardPage() {
       <Card className="mb-8">
         <CardHeader>
           <CardTitle>New Job</CardTitle>
-          <CardDescription>Paste any public YouTube URL below</CardDescription>
+          <CardDescription>Paste any public YouTube URL — or press ⌘ Enter to submit</CardDescription>
         </CardHeader>
         <CardContent>
           <InputForm />
@@ -56,6 +52,7 @@ export default async function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Recent Jobs</CardTitle>
+          <CardDescription>{userJobs.length} job{userJobs.length !== 1 ? 's' : ''} in your history</CardDescription>
         </CardHeader>
         <CardContent>
           <JobPoller hasActiveJobs={hasActiveJobs} />
@@ -64,14 +61,10 @@ export default async function DashboardPage() {
             <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
               <VideoIcon className="w-10 h-10 opacity-30" />
               <p className="font-medium">No jobs yet</p>
-              <p className="text-sm">Submit your first YouTube URL above to get started!</p>
+              <p className="text-sm">Paste your first YouTube URL above to get started!</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {userJobs.map((job) => (
-                <JobCard key={job._id} job={job} />
-              ))}
-            </div>
+            <DashboardSorter jobs={userJobs} />
           )}
         </CardContent>
       </Card>

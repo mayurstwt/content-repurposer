@@ -8,15 +8,34 @@ Paste a YouTube URL → get a full transcript + AI-generated content for TikTok,
 
 ## ✨ Features
 
+### Core
 - 🎵 **6 Platform Outputs** — TikTok, Instagram Reels, YouTube Shorts, LinkedIn, Twitter/X thread, and Newsletter
-- 📋 **Copy-to-clipboard** per field (hook, script, caption, CTA)
-- 🖼️ **YouTube thumbnail + title** auto-fetched via oEmbed
-- 📊 **AI Analysis** — summary, key moments with timestamps, virality potential, target audience, tone
+- 📋 **Per-field copy buttons** + **Copy All** for each platform
+- 📊 **Char + word count** on every output field; Twitter 280-char counter per tweet
+- 🖼️ **YouTube thumbnails + titles** auto-fetched via oEmbed
+- 📊 **AI Analysis** — summary, key moments, virality potential, target audience, tone
 - 🔄 **Background processing** via Inngest — no timeouts, retries on failure
 - 🔐 **Auth** via Clerk (sign up / sign in / sign out)
-- ⏳ **Live job status polling** — auto-refreshes every 5s while processing
-- 🗑️ **Delete jobs** per user
-- ✅ **URL validation** — YouTube links only
+
+### UX / Dashboard
+- ⏳ **Live elapsed timer** on processing jobs
+- 🎉 **Confetti burst** when a job completes + auto-expands outputs
+- 🌙 **Dark / light mode toggle** — respects system preference
+- 📑 **Tab persistence** — remembers last viewed platform tab per job
+- 🔃 **Sort controls** — newest, oldest, or by status
+- 🗑️ **Delete jobs** per user (auth-gated)
+- 🔗 **Open in YouTube** link per job card
+
+### Input Form
+- ⌨️ **Cmd/Ctrl+Enter** keyboard shortcut to submit
+- 📋 **Clipboard paste button** next to URL field
+- ✅ **YouTube URL validation** (rejects non-YouTube links)
+- 🔒 **Double-submit prevention** (button disabled while loading)
+
+### Infrastructure
+- 🔄 **Auto-polling** every 5s (3-min cap) while jobs are active
+- ⚡ **Skeleton loaders** matching job card layout
+- 🚀 **SSR** for job list + **CSR** for interactive elements
 
 ---
 
