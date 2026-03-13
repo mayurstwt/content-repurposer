@@ -3,7 +3,10 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-export async function analyzeTranscript(transcript: string) {
+export async function analyzeTranscript(transcript: string, options?: { tone?: string, audience?: string }) {
+    const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
+    const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
+
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
         generationConfig: {
@@ -17,6 +20,9 @@ export async function analyzeTranscript(transcript: string) {
 
     const prompt = `
 You are an expert viral content strategist in 2026.
+
+${toneTarget}
+${audienceTarget}
 
 Transcript:
 ${transcript}
@@ -53,7 +59,10 @@ Analyze the transcript and output strict JSON only (no extra text):
     }
 }
 
-export async function generatePlatformOutputs(analysis: any, transcript: string) {
+export async function generatePlatformOutputs(analysis: any, transcript: string, options?: { tone?: string, audience?: string }) {
+    const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
+    const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
+
     const model = genAI.getGenerativeModel({
         model: 'gemini-2.5-flash',
         generationConfig: {
@@ -64,6 +73,9 @@ export async function generatePlatformOutputs(analysis: any, transcript: string)
 
     const prompt = `
 Using this analysis and transcript:
+
+${toneTarget}
+${audienceTarget}
 
 Analysis: ${JSON.stringify(analysis)}
 Transcript excerpt: ${transcript.slice(0, 8000)}... (truncated)

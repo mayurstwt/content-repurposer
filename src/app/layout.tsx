@@ -5,16 +5,17 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import {
   ClerkProvider,
-  Show,
-  SignInButton,
   SignUpButton,
+  SignInButton,
+  SignOutButton,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { UserDropdown } from "@/components/UserDropdown";
 import { Layers } from "lucide-react";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -80,43 +81,41 @@ export default function RootLayout({
                 </Link>
 
                 {/* Signed-out */}
-                <Show when="signed-out">
-                  <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
-                    <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-                    <a href="#features" className="hover:text-white transition-colors">Features</a>
-                    <a href="#faq" className="hover:text-white transition-colors">Pricing</a>
-                  </nav>
-                  <div className="flex items-center gap-3">
-                    <ThemeToggle />
-                    <SignInButton mode="modal">
-                      <button className="text-sm text-white/70 hover:text-white transition-colors">Sign In</button>
-                    </SignInButton>
-                    <SignUpButton mode="modal">
-                      <Button
-                        size="sm"
-                        className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5"
-                      >
-                        Get Started
-                      </Button>
-                    </SignUpButton>
-                  </div>
-                </Show>
+                {/* 1. Use <SignOutButton> to show content to logged-out users */}
+                <SignOutButton>
+                  <div className="flex items-center gap-8"> {/* Single parent wrapper */}
+                    <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
+                      <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
+                      <a href="#features" className="hover:text-white transition-colors">Features</a>
+                      <a href="#faq" className="hover:text-white transition-colors">Pricing</a>
+                    </nav>
 
-                {/* Signed-in */}
-                <Show when="signed-in">
+                    <div className="flex items-center gap-3">
+                      <ThemeToggle />
+                      <SignInButton mode="modal">
+                        <button className="text-sm text-white/70 hover:text-white transition-colors">Sign In</button>
+                      </SignInButton>
+                      <SignUpButton mode="modal">
+                        <Button size="sm" className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5">
+                          Get Started
+                        </Button>
+                      </SignUpButton>
+                    </div>
+                  </div>
+                </SignOutButton>
+
+                {/* 2. Use <SignInButton> to show content to logged-in users */}
+                <SignInButton>
                   <div className="flex items-center gap-4">
                     <ThemeToggle />
                     <Link href="/dashboard">
-                      <Button
-                        size="sm"
-                        className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5"
-                      >
+                      <Button size="sm" className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5">
                         Dashboard
                       </Button>
                     </Link>
-                    <UserButton />
+                    <UserDropdown />
                   </div>
-                </Show>
+                </SignInButton>
               </div>
             </header>
 

@@ -1,6 +1,6 @@
-# 🎬 Content Repurposer
+# 🎬 Content Repurposer (SaaS)
 
-**AI-powered tool that turns any YouTube video into viral social media content.**
+**AI-powered tool that turns any YouTube video into 6 formats of viral social media content + completely Monetized via Polar.**
 
 Paste a YouTube URL → get a full transcript + AI-generated content for TikTok, Instagram Reels, YouTube Shorts, LinkedIn, Twitter, and newsletters — all in under 2 minutes.
 
@@ -8,34 +8,114 @@ Paste a YouTube URL → get a full transcript + AI-generated content for TikTok,
 
 ## ✨ Features
 
-### Core
+### Content Generation
 - 🎵 **6 Platform Outputs** — TikTok, Instagram Reels, YouTube Shorts, LinkedIn, Twitter/X thread, and Newsletter
-- 📋 **Per-field copy buttons** + **Copy All** for each platform
-- 📊 **Char + word count** on every output field; Twitter 280-char counter per tweet
-- 🖼️ **YouTube thumbnails + titles** auto-fetched via oEmbed
 - 📊 **AI Analysis** — summary, key moments, virality potential, target audience, tone
-- 🔄 **Background processing** via Inngest — no timeouts, retries on failure
-- 🔐 **Auth** via Clerk (sign up / sign in / sign out)
+- 🖼️ **YouTube thumbnails + titles** auto-fetched via oEmbed
+- 🎛️ **Tone & Audience controls** — override the AI generation style and target demographic
+- 📑 **Export Options** — Copy individually, "Copy All" blocks, or Export the full document as a branded PDF
+- 🌍 **Share-by-Link (Virality)** — Generate secure, public `nanoid` shortlinks of outputs to share with clients or friends. Auto-watermarks free tier content.
 
-### UX / Dashboard
-- ⏳ **Live elapsed timer** on processing jobs
-- 🎉 **Confetti burst** when a job completes + auto-expands outputs
-- 🌙 **Dark / light mode toggle** — respects system preference
-- 📑 **Tab persistence** — remembers last viewed platform tab per job
-- 🔃 **Sort controls** — newest, oldest, or by status
-- 🗑️ **Delete jobs** per user (auth-gated)
-- 🔗 **Open in YouTube** link per job card
+### B2B & Growth (Phase 3)
+- 🏢 **Team Workspaces** — Agency owners can generate secure invite links to onboard team members to share their unlimited quota.
+- 🎨 **White-Labeling** — Workspaces support custom branding (Logo URLs) which dynamically override the default UI on public share links.
+- 🔑 **Developer API Keys** — Generate secure hashes to programmatically trigger the background `/v1/repurpose` video engine from Zapier or custom code.
 
-### Input Form
-- ⌨️ **Cmd/Ctrl+Enter** keyboard shortcut to submit
-- 📋 **Clipboard paste button** next to URL field
-- ✅ **YouTube URL validation** (rejects non-YouTube links)
-- 🔒 **Double-submit prevention** (button disabled while loading)
+### Monetization (Polar)
+- 💳 **Tiered Subscriptions** — Free (10/mo), Pro (100/mo), Agency (Unlimited + Workspaces + API)
+- 🛒 **Checkout Sessions** — Integrated seamlessly with Polar.sh for Merchant of Record billing and subscriptions.
+- 🪝 **Webhook Syncing** — Listens to Polar `subscription.created`, `updated`, and `revoked` to auto-provision user quotas.
+- 🚦 **Quota Gating** — Automatically validates plan limits before dispatching costly background compute jobs, offering clean Upgrade UI prompts.
 
-### Infrastructure
-- 🔄 **Auto-polling** every 5s (3-min cap) while jobs are active
-- ⚡ **Skeleton loaders** matching job card layout
-- 🚀 **SSR** for job list + **CSR** for interactive elements
+### UX & Infrastructure
+- 🔄 **Background processing** via Inngest — zero timeouts, with `maxAttempts` retry buffers and explicit failure handlers.
+- ⏱️ **Job Status Polling** — Real-time live elapsed timer UI that polls MongoDB every 5s while processing.
+- 🔐 **Auth & Security** — Clerk JWT authentication, Upstash Redis Rate-Limiting (10 req/hr), and strict validation via Zod schemas.
+- 🌙 **Dark / light mode toggle** — responsive UI using `shadcn/ui` + Tailwind CSS v4.
+- 📅 **Cron Jobs** — Scheduled automated monthly job quota resets via Inngest `cron`.
+
+---
+
+## 🔄 Core Application Workflow
+
+```text
+User Submits YouTube URL (Frontend)
+        │
+        ▼
+POST /api/process 
+  1. Authenticates User via Clerk
+  2. Applies Upstash Redis Rate-Limiting
+  3. Checks User Quota/Workspace Plan (Mongo) -> Returns 402 if exceeded
+  4. Creates a "Pending" Job in MongoDB
+  5. Emits `video/repurpose` Event to Inngest
+        │
+        ▼
+Inngest Background Worker (repurposeVideo)
+  Step 1: Mark job "processing"
+  Step 2: Download raw audio via `yt-dlp` (auto-fetching binary to `os.tmpdir()`)
+  Step 3: Transcribe audio to text via Deepgram Nova-2 API
+  Step 4: Cleanup temp OS audio files
+  Step 5: Analyze transcript via Gemini 2.5 Flash -> Extract quotes & timestamps
+  Step 6: Generate 6 platform-specific outputs via Gemini 2.5 Flash
+  Step 7: Save raw Transcript & Outputs to MongoDB (status: "completed")
+  Step 8: Fire user-defined Webhook callback (if requested)
+        │
+        ▼
+Dashboard Poller
+  Frontend UI polls `GET /api/jobs` every 5 seconds.
+  Detects "completed" state -> Renders Confetti 🎉 and displays tabbed outputs.
+```
+
+---
+
+## 📁 Project Folder Structure
+
+```text
+src/
+├── app/
+│   ├── (auth)/                 # Clerk Sign-in/Sign-up pages
+│   ├── api/                    # Core REST API Endpoints
+│   │   ├── developer/keys/     # Phase 3 - API key generation
+│   │   ├── inngest/            # Webhook receiver for Inngest background workers
+│   │   ├── oembed/             # YouTube thumbnail pre-fetching
+│   │   ├── polar/              # Monetization Checkouts & Webhooks
+│   │   ├── process/            # Primary Job Trigger endpoint
+│   │   ├── v1/                 # Public Developer endpoints for Agency API Keys
+│   │   └── workspaces/         # Team Invite & Branding management
+│   ├── dashboard/              # Private user portal for job history
+│   ├── invite/[token]/         # Public receiver for Team Workspace invites
+│   ├── jobs/[id]/              # Authenticated single-job detailed view
+│   ├── settings/               # User configurations
+│   │   ├── billing/            # Polar current plan & usage tracking UI
+│   │   ├── developer/          # API Key generator UI
+│   │   └── team/               # Team Workspaces UI
+│   └── share/[slug]/           # Public unauthenticated view for viral share-links
+├── components/
+│   ├── ui/                     # Reusable Shadcn/Radix atomic components
+│   ├── InputForm.tsx           # Primary URL submission component
+│   ├── JobCard.tsx             # Job preview item on the dashboard
+│   ├── JobOutputTabs.tsx       # Complex multi-tab rendering & PDF Export component
+│   ├── Navbar.tsx              # Global sticky site navigation
+│   ├── UpgradePrompt.tsx       # Monetization CTA modal
+│   └── UserDropdown.tsx        # Client component for Clerk UserButton menu items
+├── inngest/
+│   ├── client.ts               # Inngest system configuration
+│   └── functions.ts            # Defines `repurpose-video` & `reset-monthly-quota` 
+├── lib/
+│   ├── db.ts                   # Cached MongoDB connection utility
+│   ├── jobs.ts                 # Database helpers to orchestrate Job logic
+│   ├── llm.ts                  # Raw Prompts and structured Google Gemini integrations
+│   ├── quota.ts                # Evaluation engine for Free vs Pro vs Agency limits
+│   ├── rate-limit.ts           # Upstash Redis initialization
+│   └── schemas.ts              # Zod schema definitions for strict payload typing
+└── models/
+    ├── ApiKey.ts               # Mongoose schema for cryptographically hashed Developer keys
+    ├── Job.ts                  # Mongoose schema for Core Application Jobs
+    ├── Transcript.ts           # Mongoose schema for Raw Deepgram texts
+    ├── User.ts                 # Mongoose schema for Billing tracking & Polar limits
+    ├── Workspace.ts            # Mongoose schema for Teams & White-label branding
+    └── WorkspaceInvite.ts      # Mongoose schema for secure time-limited tokenized invites
+```
 
 ---
 
@@ -43,227 +123,62 @@ Paste a YouTube URL → get a full transcript + AI-generated content for TikTok,
 
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Auth | Clerk |
-| Database | MongoDB via Mongoose |
-| Background Jobs | Inngest |
-| Transcription | Deepgram (`nova-2` model) |
-| Audio Download | yt-dlp-wrap (auto-downloads binary) |
-| AI / LLM | Google Gemini (`gemini-2.5-flash`) |
-| UI | shadcn/ui + Tailwind CSS v4 + Radix UI |
-| Toasts | Sonner |
-| Forms | React Hook Form + Zod |
-| Deployment | Netlify / Vercel |
-
----
-
-## 🔄 How It Works
-
-```
-User submits YouTube URL
-        │
-        ▼
-POST /api/process  →  Create Job in MongoDB (status: pending)
-        │              Emit Inngest event: video/repurpose
-        ▼
-Inngest Background Function (repurpose-video):
-  Step 1: Mark job as "processing"
-  Step 2: Download audio via yt-dlp (auto-binary download if missing)
-  Step 3: Transcribe audio via Deepgram API
-  Step 4: Cleanup temp audio files
-  Step 5: Analyze transcript via Gemini AI → summary, key moments, quotes
-  Step 6: Generate platform outputs via Gemini AI → TikTok, LinkedIn, Twitter, etc.
-  Step 7: Save results to MongoDB (status: completed)
-        │
-        ▼
-Dashboard polls every 5s → displays results with tabbed UI
-```
-
----
-
-## 📁 Project Structure
-
-```
-src/
-├── app/
-│   ├── page.tsx                  # Landing page (redirects to dashboard if signed in)
-│   ├── layout.tsx                # Root layout with dark navbar + Clerk + Toaster
-│   ├── globals.css
-│   ├── dashboard/
-│   │   └── page.tsx              # Main dashboard (job submission + list)
-│   └── api/
-│       ├── process/route.ts      # POST: create job + fire Inngest event
-│       ├── inngest/route.ts      # Inngest webhook handler
-│       ├── oembed/route.ts       # GET: fetch YouTube title + thumbnail
-│       └── jobs/[id]/route.ts    # DELETE: remove a job (auth-gated)
-├── components/
-│   ├── InputForm.tsx             # YouTube URL form with validation + toast
-│   ├── JobCard.tsx               # Job list item (thumbnail, status, outputs)
-│   ├── JobOutputTabs.tsx         # Tabbed output viewer with copy buttons
-│   ├── JobPoller.tsx             # Auto-refresh poller (max 3 min)
-│   └── ui/                       # shadcn components (Button, Badge, Card, Tabs, etc.)
-├── inngest/
-│   ├── client.ts                 # Inngest client instance
-│   └── functions.ts              # repurposeVideo background function
-├── lib/
-│   ├── db.ts                     # MongoDB connection (cached for hot reload)
-│   ├── llm.ts                    # Gemini AI helpers: analyzeTranscript, generatePlatformOutputs
-│   ├── schemas.ts                # Zod schema: YouTube URL validation
-│   └── utils.ts                  # cn() utility
-└── models/
-    └── Job.ts                    # Mongoose Job model
-```
-
----
-
-## 🗄️ Job Data Model
-
-```typescript
-{
-  userId: string;          // Clerk user ID
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  inputUrl: string;        // YouTube URL
-  transcript?: string;     // Full text transcript from Deepgram
-  analysis?: {             // Gemini analysis result
-    summary: string;
-    key_moments: Array<{ start_time, description, virality_potential, why_viral }>;
-    main_quotes: string[];
-    target_audience: string;
-    primary_tone: string;
-  };
-  outputs?: {              // Platform-specific generated content
-    tiktok: { hook, script, caption, cta, suggested_clip_start, suggested_clip_end };
-    instagram_reels: { ... };
-    youtube_shorts: { ... };
-    linkedin: { post_text, carousel_outline, hashtags };
-    twitter_thread: { tweets: string[] };
-    newsletter_summary: { subject, body };
-  };
-  error?: string;          // Error message if status === 'failed'
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
+| **Framework** | Next.js 16 (App Router) |
+| **Auth** | Clerk |
+| **Database** | MongoDB (Mongoose) |
+| **Monetization** | Polar.sh |
+| **Background Jobs**| Inngest |
+| **Transcription** | Deepgram (`nova-2` model) |
+| **AI / LLM** | Google Gemini (`gemini-2.5-flash`) |
+| **Audio Fetching** | yt-dlp-wrap |
+| **UI** | shadcn/ui + Tailwind CSS v4 + Radix UI |
+| **Caching/Limits** | Upstash Redis |
 
 ---
 
 ## ⚙️ Environment Variables
 
-Create a `.env.local` file in the root:
+Create a `.env.local` file in the root based on `.env.example`:
 
 ```env
-# MongoDB
-MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/content-repurposer
+# MongoDB Database
+MONGODB_URI=mongodb+srv://...
 
 # Clerk Auth
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 
-# Deepgram (transcription)
+# Deepgram (Transcription)
 DEEPGRAM_API_KEY=...
 
-# Google Gemini
+# Google Gemini (LLM)
 GEMINI_API_KEY=...
 
-# Inngest
+# Inngest (Background Worker & Cron)
 INNGEST_APP_NAME=content-repurposer
-INNGEST_EVENT_KEY=...           # From Inngest Cloud dashboard
-INNGEST_SIGNING_KEY=...         # From Inngest Cloud dashboard
+INNGEST_EVENT_KEY=...
+INNGEST_SIGNING_KEY=...
+
+# Polar (Monetization & Billing)
+POLAR_ACCESS_TOKEN=polar_...
+POLAR_WEBHOOK_SECRET=...
+POLAR_FREE_PRODUCT_ID=...
+POLAR_PRO_PRODUCT_ID=...
+POLAR_AGENCY_PRODUCT_ID=...
+
+# Upstash Redis (Rate Limiting)
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 ```
 
 ---
 
 ## 🚀 Local Development
 
-### Prerequisites
-- Node.js 18+
-- MongoDB Atlas account (or local MongoDB)
-- Clerk account
-- Deepgram account
-- Google AI Studio account (Gemini API key)
-- [Inngest account](https://inngest.com)
+1. **Clone & Install**: `git clone ... && npm install`
+2. **Environment**: Copy `.env.example` -> `.env.local` and provide the keys.
+3. **Start Next.js**: `npm run dev` (Runs on `localhost:3000`)
+4. **Start Inngest**: In a second terminal, run `npx inngest-cli@latest dev` (Runs on `localhost:8288`)
 
-### Steps
-
-```bash
-# 1. Clone the repo
-git clone https://github.com/mayurstwt/content-repurposer.git
-cd content-repurposer
-
-# 2. Install dependencies
-npm install
-
-# 3. Set up environment variables
-cp .env.example .env.local
-# Fill in all values in .env.local
-
-# 4. Start the Next.js dev server
-npm run dev
-
-# 5. In a separate terminal, start the Inngest dev server
-npx inngest-cli@latest dev
-# This starts the Inngest dev UI at http://localhost:8288
-# It auto-discovers the /api/inngest endpoint
-
-# 6. Open the app
-open http://localhost:3000
-```
-
----
-
-## 🧪 Testing the Pipeline
-
-1. Sign up / sign in via Clerk
-2. Go to the Dashboard
-3. Paste a YouTube URL (e.g. any public video under 30 minutes)
-4. Click **Repurpose Video**
-5. A job card appears — watch it auto-update from `pending → processing → completed`
-6. Once complete, expand the job and click through the platform tabs to see generated content
-
-> **Note:** The first job may take slightly longer as yt-dlp auto-downloads its binary. Subsequent jobs are faster.
-
----
-
-## 📡 API Reference
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/process` | ✅ | Create a new repurpose job |
-| `DELETE` | `/api/jobs/[id]` | ✅ | Delete a job (owner only) |
-| `GET` | `/api/oembed?url=...` | ❌ | Fetch YouTube title + thumbnail |
-| `PUT/POST` | `/api/inngest` | Inngest signature | Inngest webhook handler |
-
----
-
-## 🌐 Deployment (Netlify / Vercel)
-
-### Netlify
-1. Push to GitHub
-2. Connect repo to Netlify
-3. Add all environment variables in **Site Settings → Environment Variables**
-4. Set build command: `npm run build`
-5. Set publish directory: `.next`
-6. Install the **@netlify/plugin-nextjs** plugin
-
-### Vercel (recommended)
-1. Push to GitHub
-2. Import project on Vercel
-3. Add all environment variables
-4. Deploy — Vercel auto-detects Next.js
-
-> **Important:** For Inngest to work in production, set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` from the [Inngest Cloud dashboard](https://app.inngest.com).
-
----
-
-## 🧩 Key Design Decisions
-
-- **Inngest for background jobs** — YouTube download + transcription + LLM analysis can take 60–120s, far beyond serverless function limits. Inngest handles this with durable execution and automatic retries.
-- **yt-dlp auto-download** — The yt-dlp binary is automatically downloaded at runtime to `os.tmpdir()` so it works in serverless environments without manual installation.
-- **Gemini `responseMimeType: application/json`** — Forces structured JSON output, avoiding the need for prompt-hacking or regex parsing.
-- **oEmbed for thumbnails** — No YouTube Data API key needed. The oEmbed endpoint is public and returns title + thumbnail for any public video.
-
----
-
-## 📄 License
-
-MIT
+**To Test Webhooks Locally:**
+Use Pinggy, Ngrok, or the Inngest local dev server to expose your localhost to Polar and other external webhook dispatchers so `subscription.created` events fire to `/api/polar/webhook`.

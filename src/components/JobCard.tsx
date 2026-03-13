@@ -1,10 +1,10 @@
 // src/components/JobCard.tsx
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Trash2, ExternalLink } from 'lucide-react';
+import { AlertCircle, Trash2, ExternalLink, Star, RotateCw, Share2, Link as LinkIcon } from 'lucide-react';
 import JobOutputTabs from '@/components/JobOutputTabs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -16,6 +16,8 @@ interface Job {
     inputUrl: string;
     status: string;
     error?: string;
+    pinned?: boolean;
+    isPublic?: boolean;
     outputs?: any;
     createdAt: string;
 }
@@ -67,6 +69,9 @@ function StatusBadge({ status }: { status: string }) {
 export default function JobCard({ job }: { job: Job }) {
     const [meta, setMeta] = useState<{ title?: string; thumbnail?: string; author?: string } | null>(null);
     const [deleting, setDeleting] = useState(false);
+    const [retrying, setRetrying] = useState(false);
+    const [pinning, setPinning] = useState(false);
+    const [sharing, setSharing] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const prevStatus = useRef(job.status);
     const router = useRouter();
@@ -111,6 +116,59 @@ export default function JobCard({ job }: { job: Job }) {
         }
     };
 
+    const handlePin = async () => {
+        setPinning(true);
+        try {
+            const res = await fetch(`/api/jobs/${job._id}/pin`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pinned: !job.pinned })
+            });
+            if (!res.ok) throw new Error('Failed to pin');
+            router.refresh();
+        } catch {
+            toast.error('Failed to update pin status');
+        } finally {
+            setPinning(false);
+        }
+    };
+
+    const handleRetry = async () => {
+        setRetrying(true);
+        try {
+            const res = await fetch(`/api/jobs/${job._id}/retry`, { method: 'POST' });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Retry failed');
+            }
+            toast.success('Job queued for retry');
+            router.refresh();
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setRetrying(false);
+        }
+    };
+
+    const handleShare = async () => {
+        setSharing(true);
+        try {
+            const res = await fetch(`/api/jobs/${job._id}/share`, { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to create share link');
+
+            const { shareSlug } = await res.json();
+            const url = `${window.location.origin}/share/${shareSlug}`;
+
+            await navigator.clipboard.writeText(url);
+            toast.success('Public link copied to clipboard!');
+            router.refresh();
+        } catch {
+            toast.error('Failed to create share link');
+        } finally {
+            setSharing(false);
+        }
+    };
+
     return (
         <div className="border rounded-lg overflow-hidden">
             {/* Thumbnail + header */}
@@ -148,14 +206,39 @@ export default function JobCard({ job }: { job: Job }) {
                             </a>
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                             <StatusBadge status={job.status} />
+
+                            {job.status === 'completed' && (
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className={`h-7 w-7 text-muted-foreground ${job.isPublic ? 'text-blue-500' : 'hover:text-blue-500'}`}
+                                    onClick={handleShare}
+                                    disabled={sharing}
+                                    title="Share public link"
+                                >
+                                    <LinkIcon className="w-3.5 h-3.5" />
+                                </Button>
+                            )}
+
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-yellow-500"
+                                onClick={handlePin}
+                                disabled={pinning}
+                                title={job.pinned ? "Unpin job" : "Pin job"}
+                            >
+                                <Star className="w-3.5 h-3.5" fill={job.pinned ? "currentColor" : "none"} />
+                            </Button>
                             <Button
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
                                 onClick={handleDelete}
                                 disabled={deleting}
+                                title="Delete job"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </Button>
@@ -176,9 +259,21 @@ export default function JobCard({ job }: { job: Job }) {
 
             {/* Error */}
             {job.status === 'failed' && job.error && (
-                <div className="mx-4 mb-3 flex items-start gap-2 text-destructive text-xs bg-destructive/10 rounded p-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                    <span>{job.error}</span>
+                <div className="mx-4 mb-3 flex items-start justify-between gap-4 text-destructive text-xs bg-destructive/10 rounded p-2">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                        <span>{job.error}</span>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[10px] px-2 shrink-0 border-destructive/20 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={handleRetry}
+                        disabled={retrying}
+                    >
+                        {retrying ? <RotateCw className="w-3 h-3 animate-spin mr-1" /> : <RotateCw className="w-3 h-3 mr-1" />}
+                        Retry Job
+                    </Button>
                 </div>
             )}
 

@@ -1,13 +1,30 @@
 import dbConnect from './db';
 import Job, { IJob } from '@/models/Job';
+import User from '@/models/User';
 
-export async function createJob(userId: string, inputUrl: string): Promise<IJob> {
+export async function createJob(
+  userId: string,
+  inputUrl: string,
+  tone?: string,
+  audience?: string,
+  webhookUrl?: string
+): Promise<IJob> {
   await dbConnect();
   const job = await Job.create({
     userId,
     inputUrl,
     status: 'pending',
+    webhookUrl,
+    generateOptions: { tone, audience },
   });
+
+  // Keep track of usage for billing
+  await User.findOneAndUpdate(
+    { clerkId: userId },
+    { $inc: { jobsThisMonth: 1 } },
+    { upsert: true }
+  );
+
   return job;
 }
 
