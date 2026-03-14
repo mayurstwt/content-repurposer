@@ -59,14 +59,16 @@ export default async function DashboardPage(props: { searchParams?: Promise<{ q?
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-1">Dashboard</h1>
-      <p className="text-muted-foreground mb-8">Submit a YouTube video to repurpose it into social content.</p>
+      <h1 className="text-3xl font-bold mb-1 tracking-tight">Dashboard</h1>
+      <p className="text-muted-foreground mb-8">
+        Transform your YouTube videos into ready-to-publish social media posts in seconds.
+      </p>
 
       {/* Submit Form */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>New Job</CardTitle>
-          <CardDescription>Paste any public YouTube URL — or press ⌘ Enter to submit</CardDescription>
+      <Card className="mb-10 shadow-xl border-primary/10 overflow-hidden">
+        <CardHeader className="bg-muted/30 pb-6 border-b">
+          <CardTitle className="text-xl">Create New Content</CardTitle>
+          <CardDescription>Drop your YouTube video link below to get started. Press ⌘ Enter to submit quickly.</CardDescription>
         </CardHeader>
         <CardContent>
           <InputForm />
@@ -74,9 +76,9 @@ export default async function DashboardPage(props: { searchParams?: Promise<{ q?
       </Card>
 
       {/* Job List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Jobs</CardTitle>
+      <Card className="shadow-sm">
+        <CardHeader className="border-b bg-muted/10 pb-4 mb-4">
+          <CardTitle className="text-lg">Recent Generations</CardTitle>
           <CardDescription>{totalJobs} job{totalJobs !== 1 ? 's' : ''} total</CardDescription>
         </CardHeader>
         <CardContent>

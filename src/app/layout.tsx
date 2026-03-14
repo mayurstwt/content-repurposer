@@ -1,15 +1,15 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import {
   ClerkProvider,
   SignUpButton,
   SignInButton,
-  SignOutButton,
   UserButton,
 } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
@@ -18,6 +18,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserDropdown } from "@/components/UserDropdown";
 import { Layers } from "lucide-react";
 
+const fontSans = Plus_Jakarta_Sans({ subsets: ["latin"] });
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -51,17 +52,31 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { userId } = await auth();
+
   return (
-    <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider
+      afterSignOutUrl="/"
+      appearance={{
+        variables: {
+          colorPrimary: '#f97316',
+        },
+        elements: {
+          card: "bg-background shadow-2xl border border-border rounded-xl",
+          headerTitle: "text-foreground",
+          headerSubtitle: "text-muted-foreground",
+        }
+      }}
+    >
       <html lang="en" suppressHydrationWarning>
         <body
           className={cn(
-            inter.className,
+            fontSans.className,
             "min-h-screen bg-background antialiased",
           )}
         >
@@ -72,55 +87,55 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {/* ── Navbar ── */}
-            <header className="sticky top-0 z-50 bg-black text-white border-b border-white/10">
-              <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+            <header className="sticky top-0 z-50 bg-[#0f172a] text-[#f8fafc] border-b border-[#1e293b]">
+              <div className="container mx-auto px-6 h-[72px] flex items-center justify-between">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 font-bold text-lg">
-                  <Layers className="w-5 h-5" />
+                <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                  <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+                    <span className="text-[#0f172a] text-lg font-black">C</span>
+                  </div>
                   Repurposer
                 </Link>
 
                 {/* Signed-out */}
-                {/* 1. Use <SignOutButton> to show content to logged-out users */}
-                <SignOutButton>
-                  <div className="flex items-center gap-8"> {/* Single parent wrapper */}
-                    <nav className="hidden md:flex items-center gap-8 text-sm text-white/70">
-                      <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
-                      <a href="#features" className="hover:text-white transition-colors">Features</a>
-                      <a href="#faq" className="hover:text-white transition-colors">Pricing</a>
+                {!userId && (
+                  <div className="flex items-center gap-6">
+                    <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-white/80">
+                      <a href="#demo" className="hover:text-white transition-colors">View demo</a>
+                      <a href="#sales" className="hover:text-white transition-colors">Contact sales</a>
+                      <SignInButton mode="modal">
+                        <button className="hover:text-white transition-colors">Sign in</button>
+                      </SignInButton>
                     </nav>
 
                     <div className="flex items-center gap-3">
                       <ThemeToggle />
-                      <SignInButton mode="modal">
-                        <button className="text-sm text-white/70 hover:text-white transition-colors">Sign In</button>
-                      </SignInButton>
                       <SignUpButton mode="modal">
-                        <Button size="sm" className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5">
-                          Get Started
+                        <Button size="sm" className="rounded-md bg-white text-[#0f172a] hover:bg-white/90 font-semibold px-4 py-2 h-auto">
+                          Start free trial
                         </Button>
                       </SignUpButton>
                     </div>
                   </div>
-                </SignOutButton>
+                )}
 
-                {/* 2. Use <SignInButton> to show content to logged-in users */}
-                <SignInButton>
+                {/* Signed-in */}
+                {userId && (
                   <div className="flex items-center gap-4">
                     <ThemeToggle />
                     <Link href="/dashboard">
-                      <Button size="sm" className="rounded-full bg-white text-black hover:bg-white/90 font-semibold px-5">
+                      <Button size="sm" className="rounded-md bg-white text-[#0f172a] hover:bg-white/90 font-semibold px-4 py-2 h-auto">
                         Dashboard
                       </Button>
                     </Link>
                     <UserDropdown />
                   </div>
-                </SignInButton>
+                )}
               </div>
             </header>
 
             <main>{children}</main>
-            <Toaster richColors position="top-right" />
+            <Toaster richColors position="bottom-right" />
           </ThemeProvider>
         </body>
       </html>
