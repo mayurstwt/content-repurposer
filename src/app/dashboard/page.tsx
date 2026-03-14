@@ -58,15 +58,36 @@ export default async function DashboardPage(props: { searchParams?: Promise<{ q?
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-1 tracking-tight">Dashboard</h1>
-      <p className="text-muted-foreground mb-8">
-        Transform your YouTube videos into ready-to-publish social media posts in seconds.
-      </p>
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8 rounded-[2rem] border border-border/70 bg-card/80 p-6 shadow-xl backdrop-blur">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.28em] text-primary">Workspace</p>
+            <h1 className="text-4xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="mt-3 max-w-2xl text-muted-foreground">
+              Transform YouTube videos into ready-to-publish social posts, review outputs, and keep an auditable history of every generation.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Jobs</p>
+              <p className="mt-2 text-2xl font-semibold">{totalJobs}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Status</p>
+              <p className="mt-2 text-2xl font-semibold">{hasActiveJobs ? 'Live' : 'Idle'}</p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/80 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Search</p>
+              <p className="mt-2 text-2xl font-semibold">{q ? 'Filtered' : 'All'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Submit Form */}
-      <Card className="mb-10 shadow-xl border-primary/10 overflow-hidden">
-        <CardHeader className="bg-muted/30 pb-6 border-b">
+      <Card className="mb-10 overflow-hidden border-primary/10 shadow-xl">
+        <CardHeader className="border-b bg-muted/30 pb-6">
           <CardTitle className="text-xl">Create New Content</CardTitle>
           <CardDescription>Drop your YouTube video link below to get started. Press ⌘ Enter to submit quickly.</CardDescription>
         </CardHeader>
@@ -77,7 +98,7 @@ export default async function DashboardPage(props: { searchParams?: Promise<{ q?
 
       {/* Job List */}
       <Card className="shadow-sm">
-        <CardHeader className="border-b bg-muted/10 pb-4 mb-4">
+        <CardHeader className="mb-4 border-b bg-muted/10 pb-4">
           <CardTitle className="text-lg">Recent Generations</CardTitle>
           <CardDescription>{totalJobs} job{totalJobs !== 1 ? 's' : ''} total</CardDescription>
         </CardHeader>

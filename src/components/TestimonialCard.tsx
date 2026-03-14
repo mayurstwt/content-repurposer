@@ -10,19 +10,19 @@ export function TestimonialCard({
     authorTitle: string;
 }) {
     return (
-        <div className="flex flex-col p-8 md:p-12 rounded-[2.5rem] bg-muted/40 border">
-            <Quote className="w-12 h-12 text-blue-500 mb-6" fill="currentColor" />
+        <div className="flex h-full flex-col rounded-[2rem] border border-border/70 bg-card/80 p-8 shadow-sm backdrop-blur-sm md:p-10">
+            <Quote className="mb-6 h-12 w-12 text-primary" fill="currentColor" />
 
-            <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-10 flex-1">
+            <p className="mb-10 flex-1 text-lg leading-relaxed text-muted-foreground md:text-xl">
                 "{text}"
             </p>
 
             <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center font-bold text-lg">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-primary/15 font-bold text-lg text-primary">
                     {authorName[0]}
                 </div>
                 <div>
-                    <h4 className="font-bold tracking-tight uppercase text-sm">{authorName}</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-tight">{authorName}</h4>
                     <p className="text-xs text-muted-foreground">{authorTitle}</p>
                 </div>
             </div>

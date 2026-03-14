@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
             const subscriptionId = payload.id as string;
 
             if (!userId) {
-                logger.warn({ eventId: event.id }, "Received Polar webhook without userId in metadata");
+                logger.warn({ subscriptionId }, "Received Polar webhook without userId in metadata");
                 return new NextResponse("ok"); // Ignore it so Polar doesn't retry
             }
 

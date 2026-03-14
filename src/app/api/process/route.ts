@@ -78,8 +78,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, count: jobs.length });
   } catch (error: any) {
     logger.error({ userId, error: error.message }, "Process API Error");
+    const validationMessage = error?.issues?.[0]?.message || error?.errors?.[0]?.message;
     return NextResponse.json(
-      { error: error.errors?.[0]?.message || "Invalid input" },
+      { error: validationMessage || "Invalid input" },
       { status: 400 },
     );
   }

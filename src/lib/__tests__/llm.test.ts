@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
-import { analyzeTranscript, generatePlatformOutputs } from '../llm';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+/** @jest-environment node */
+
+import { describe, it, expect, jest } from '@jest/globals';
 
 // Mock the Gemini API
-vi.mock('@google/generative-ai', () => {
-    const mockGenerateContent = vi.fn().mockResolvedValue({
+jest.mock('@google/generative-ai', () => {
+    const mockGenerateContent = jest.fn().mockResolvedValue({
         response: {
             text: () => JSON.stringify({
                 summary: 'Test summary',
@@ -14,13 +14,15 @@ vi.mock('@google/generative-ai', () => {
     });
 
     return {
-        GoogleGenerativeAI: vi.fn().mockImplementation(() => ({
-            getGenerativeModel: vi.fn().mockReturnValue({
+        GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+            getGenerativeModel: jest.fn().mockReturnValue({
                 generateContent: mockGenerateContent
             })
         }))
     };
 });
+
+const { analyzeTranscript, generatePlatformOutputs } = require('../llm');
 
 describe('LLM Helpers', () => {
     it('analyzes a transcript and returns JSON', async () => {
@@ -34,5 +36,10 @@ describe('LLM Helpers', () => {
         // Just verify it doesn't crash here since we mocked the result
         const result = await analyzeTranscript('Transcript text', { tone: 'funny', audience: 'kids' });
         expect(result.summary).toBe('Test summary');
+    });
+
+    it('generates platform outputs as parsed JSON', async () => {
+        const result = await generatePlatformOutputs({ summary: 'Summary' }, 'Transcript text');
+        expect(result).toHaveProperty('summary');
     });
 });
