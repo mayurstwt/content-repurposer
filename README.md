@@ -27,6 +27,13 @@ Paste a YouTube URL → get a full transcript + AI-generated content for TikTok,
 - 🪝 **Webhook Syncing** — Listens to Polar `subscription.created`, `updated`, and `revoked` to auto-provision user quotas.
 - 🚦 **Quota Gating** — Automatically validates plan limits before dispatching costly background compute jobs, offering clean Upgrade UI prompts.
 
+### Security & Stability
+- 🛡️ **API Key Hardening** — Developer keys are securely hashed using `scrypt` with random 16-byte salts to prevent rainbow-table DB attacks.
+- 🚧 **SSRF Protection** — Strict Zod validations block user webhooks attempting to ping localhost, loopback, or cloud/AWS metadata IPs.
+- 🔑 **Strict Encryption** — Production instances fail-hard on boot if `ENCRYPTION_KEY` variables are missing, eliminating silent plaintext fallback risks.
+- ⏱️ **Resilient Background Limits** — Webhook delivery utilizes HTTP `AbortController` timeouts, and Audio DL/Local Transcript logic guarantees robust temp-folder cleanup natively within the serverless stepping loop to prevent disk leakage during failovers.
+- 🚦 **Public API Rate Limiting** — The `/api/v1/repurpose` Developer endpoint invokes an Upstash Redis Sliding Window rate-limit securely pinned to each validated API key.
+
 ### UX & Infrastructure
 - 🔄 **Background processing** via Inngest — zero timeouts, with `maxAttempts` retry buffers and explicit failure handlers.
 - ⏱️ **Job Status Polling** — Real-time live elapsed timer UI that polls MongoDB every 5s while processing.

@@ -8,7 +8,10 @@ import { logger } from "@/lib/logger";
 export async function POST(req: NextRequest) {
     try {
         const rawBody = await req.text();
-        const signature = req.headers.get("webhook-signature") ?? req.headers.get("polar-signature") ?? "";
+        const signature = req.headers.get("webhook-signature");
+        if (!signature) {
+            return new NextResponse("Missing webhook-signature header", { status: 400 });
+        }
         const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
 
         if (!webhookSecret) {

@@ -4,15 +4,14 @@ import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import ApiKey from "@/models/ApiKey";
 import User from "@/models/User";
+import { hashApiKey } from "@/lib/encryption";
+import mongoose from "mongoose";
 
 function generateKey() {
     const prefix = "rp_";
-    const randomStr = crypto.randomBytes(24).toString("hex");
-    return `${prefix}${randomStr}`;
-}
-
-function hashKey(key: string) {
-    return crypto.createHash("sha256").update(key).digest("hex");
+    const keyId = new mongoose.Types.ObjectId().toString();
+    const secret = crypto.randomBytes(24).toString("hex");
+    return { rawKey: `${prefix}${keyId}_${secret}`, keyId };
 }
 
 export async function GET(req: NextRequest) {
@@ -64,10 +63,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: `You can only generate up to ${maxKeys} active keys.` }, { status: 400 });
         }
 
-        const rawKey = generateKey();
-        const keyHash = hashKey(rawKey);
+        const { rawKey, keyId } = generateKey();
+        const keyHash = await hashApiKey(rawKey);
 
         const apiKey = await ApiKey.create({
+            _id: keyId,
             userId,
             name,
             keyHash,

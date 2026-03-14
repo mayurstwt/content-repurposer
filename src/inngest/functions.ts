@@ -45,96 +45,71 @@ export const repurposeVideo = inngest.createFunction(
       };
     });
 
-    let transcriptResult: any = null;
+    // Step 2: Download Audio & Transcribe (Consolidated step to guarantee local temp file cleanup)
     let errorMessage: string | null = null;
-    let tempDir: string = '';
-    let tempAudioPath: string = '';
+    let transcriptResult: any = null;
 
     try {
-      // Step 2a: Extract & download audio to temp file
-      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'repurposer-'));
-      tempAudioPath = path.join(tempDir, `${jobId}.m4a`);
-
-      const audioPath = await step.run('download-audio', async () => {
-        // Automatically download the yt-dlp binary if missing (fixes ENOENT error)
-        const ytDlpBinaryPath = path.join(os.tmpdir(), 'yt-dlp-binary');
+      transcriptResult = await step.run('process-audio-and-transcribe', async () => {
+        let tempDir = '';
         try {
-          await fs.stat(ytDlpBinaryPath);
-        } catch (e) {
-          console.log('yt-dlp binary not found, downloading from GitHub...');
-          await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
-        }
+          tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'repurposer-'));
+          const tempAudioPath = path.join(tempDir, `${jobId}.m4a`);
 
-        const ytDlp = new YTDlpWrap(ytDlpBinaryPath); // Use the downloaded binary
-
-        const ytDlpArgs = [
-          event.data.inputUrl,
-          '-f', 'bestaudio[ext=m4a]',  // prefer m4a (AAC) for size/compatibility
-          '--audio-format', 'm4a',
-          '-o', tempAudioPath,
-          '--no-playlist',             // avoid downloading whole playlist
-          '--quiet',
-          '--no-warnings',
-        ];
-
-        console.log('Running yt-dlp with args:', ytDlpArgs);
-
-        await ytDlp.execPromise(ytDlpArgs);
-
-        // Verify file exists and has size
-        const stats = await fs.stat(tempAudioPath);
-        if (stats.size === 0) {
-          throw new Error('Downloaded audio file is empty');
-        }
-
-        return tempAudioPath;
-      });
-
-      // Step 2b: Transcribe the local file
-      transcriptResult = await step.run('transcribe-video', async () => {
-        const deepgram = createClient(process.env.DEEPGRAM_API_KEY!);
-
-        const audioBuffer = await fs.readFile(audioPath!);
-
-        const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
-          audioBuffer,
-          {
-            model: 'nova-2',
-            smart_format: true,
-            language: 'en',
-            punctuate: true,
-            // Temporarily removed diarize, paragraphs, and utterances for debugging
+          const ytDlpBinaryPath = path.join(os.tmpdir(), 'yt-dlp-binary');
+          try {
+            await fs.stat(ytDlpBinaryPath);
+          } catch (e) {
+            console.log('yt-dlp binary not found, downloading from GitHub...');
+            await YTDlpWrap.downloadFromGithub(ytDlpBinaryPath);
           }
-        );
 
-        if (error) {
-          throw new Error(`Deepgram failed: ${JSON.stringify(error)}`);
+          const ytDlp = new YTDlpWrap(ytDlpBinaryPath);
+          const ytDlpArgs = [
+            event.data.inputUrl,
+            '-f', 'bestaudio[ext=m4a]',
+            '--audio-format', 'm4a',
+            '-o', tempAudioPath,
+            '--no-playlist',
+            '--quiet',
+            '--no-warnings',
+          ];
+
+          await ytDlp.execPromise(ytDlpArgs);
+
+          const stats = await fs.stat(tempAudioPath);
+          if (stats.size === 0) throw new Error('Downloaded audio file is empty');
+
+          const deepgram = createClient(process.env.DEEPGRAM_API_KEY!);
+          const audioBuffer = await fs.readFile(tempAudioPath);
+
+          const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
+            audioBuffer,
+            {
+              model: 'nova-2',
+              smart_format: true,
+              language: 'en',
+              punctuate: true,
+            }
+          );
+
+          if (error) {
+            throw new Error(`Deepgram failed: ${JSON.stringify(error)}`);
+          }
+
+          const transcriptText = result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+          return { fullTranscript: transcriptText };
+
+        } finally {
+          // Guaranteed cleanup block attached directly to the step closure
+          if (tempDir) {
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(console.error);
+          }
         }
-
-        const transcriptText = result?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
-
-        return {
-          fullTranscript: transcriptText,
-        };
       });
-
-
-
-
-      // Clean up temp files (critical on serverless!)
-      await step.run('cleanup-files', async () => {
-        await fs.rm(tempDir, { recursive: true, force: true });
-        console.log('Temp files cleaned');
-      });
-
     } catch (err: any) {
       errorMessage = err.message || 'Audio download/transcription failed';
       console.error('Full processing error:', err);
-
-      // Optional: cleanup on error too
-      if (tempDir) {
-        await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
-      }
     }
 
 
@@ -193,6 +168,9 @@ export const repurposeVideo = inngest.createFunction(
     if (jobOptions.webhookUrl) {
       await step.run('fire-webhook', async () => {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
           await fetch(jobOptions.webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -201,8 +179,10 @@ export const repurposeVideo = inngest.createFunction(
               status: 'completed',
               inputUrl: event.data.inputUrl,
               outputs,
-            })
+            }),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
         } catch (e) {
           console.error('Webhook payload failed to deliver:', e);
           // We do not throw here to prevent failing the entire job if the user's webhook is down.

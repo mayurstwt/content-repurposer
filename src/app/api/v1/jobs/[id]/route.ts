@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import ApiKey from "@/models/ApiKey";
 import Job from "@/models/Job";
-
-function hashKey(key: string) {
-    return crypto.createHash("sha256").update(key).digest("hex");
-}
+import { verifyApiKey } from "@/lib/encryption";
+import mongoose from "mongoose";
 
 export async function GET(
     req: NextRequest,
@@ -19,12 +16,29 @@ export async function GET(
         }
 
         const rawKey = authHeader.split(" ")[1];
-        const keyHash = hashKey(rawKey);
+        if (!rawKey) {
+            return NextResponse.json({ error: "Empty Bearer token." }, { status: 401 });
+        }
+
+        const parts = rawKey.split('_');
+        if (parts.length !== 3 || parts[0] !== 'rp') {
+            return NextResponse.json({ error: "Invalid API Key format." }, { status: 401 });
+        }
+        const keyId = parts[1];
+
+        if (!mongoose.isValidObjectId(keyId)) {
+            return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
+        }
 
         await dbConnect();
-        const apiKeyDoc = await ApiKey.findOne({ keyHash }).lean();
+        const apiKeyDoc = await ApiKey.findById(keyId).lean();
 
         if (!apiKeyDoc) {
+            return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
+        }
+
+        const isValid = await verifyApiKey(rawKey, apiKeyDoc.keyHash);
+        if (!isValid) {
             return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
         }
 

@@ -6,10 +6,19 @@ const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
     ? Buffer.from(process.env.ENCRYPTION_KEY, 'hex')
     : null;
 
+if (process.env.NODE_ENV === 'production' && !ENCRYPTION_KEY) {
+    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is missing.');
+}
+
 const ALGORITHM = 'aes-256-gcm';
 
 export function encrypt(text: string): string {
-    if (!ENCRYPTION_KEY) return text; // Fallback if no key is set
+    if (!ENCRYPTION_KEY) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error("Missing ENCRYPTION_KEY");
+        }
+        return text;
+    }
 
     try {
         const iv = crypto.randomBytes(12); // GCM standard IV length is 12 bytes
@@ -54,4 +63,33 @@ export function decrypt(encryptedData: string): string {
         // If decryption fails (e.g. wrong key), return the raw string rather than crashing
         return encryptedData;
     }
+}
+
+// ==========================================
+// API Key Secure Hashing (Scrypt + Salt)
+// ==========================================
+
+export async function hashApiKey(key: string): Promise<string> {
+    const salt = crypto.randomBytes(16).toString('hex');
+    return new Promise((resolve, reject) => {
+        crypto.scrypt(key, salt, 64, (err, derivedKey) => {
+            if (err) reject(err);
+            resolve(`${salt}:${derivedKey.toString('hex')}`);
+        });
+    });
+}
+
+export async function verifyApiKey(key: string, hash: string): Promise<boolean> {
+    const parts = hash.split(':');
+    if (parts.length !== 2) return false;
+    const [salt, keyHash] = parts;
+
+    return new Promise((resolve, reject) => {
+        crypto.scrypt(key, salt, 64, (err, derivedKey) => {
+            if (err) reject(err);
+            const derivedKeyHex = derivedKey.toString('hex');
+            if (derivedKeyHex.length !== keyHash.length) return resolve(false);
+            resolve(crypto.timingSafeEqual(Buffer.from(derivedKeyHex), Buffer.from(keyHash)));
+        });
+    });
 }

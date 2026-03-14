@@ -2,7 +2,7 @@ import dbConnect from "./db";
 import User from "@/models/User";
 import Workspace from '@/models/Workspace';
 
-export const PLAN_LIMITS = { free: 3, pro: 30, agency: Infinity };
+export const PLAN_LIMITS = { free: 10, pro: 100, agency: Infinity };
 
 export async function checkJobQuota(userId: string): Promise<{ allowed: boolean; reason?: string; limit?: number; plan?: string }> {
     await dbConnect();
@@ -28,18 +28,10 @@ export async function checkJobQuota(userId: string): Promise<{ allowed: boolean;
         return { allowed: true, limit: Infinity, plan: 'agency' };
     }
 
-    let limit: number;
-    if (plan === 'pro') {
-        limit = 100;
-        if (jobsThisMonth >= limit) {
-            return { allowed: false, reason: 'You\'ve reached your limit of 100 jobs for the PRO plan. Please upgrade to continue.', limit, plan: 'pro' };
-        }
-    } else {
-        // Free plan
-        limit = 10;
-        if (jobsThisMonth >= limit) {
-            return { allowed: false, reason: 'You\'ve reached your limit of 10 jobs for the FREE plan. Please upgrade to continue.', limit, plan: 'free' };
-        }
+    const limit = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.free;
+
+    if (jobsThisMonth >= limit) {
+        return { allowed: false, reason: `You've reached your limit of ${limit} jobs for the ${plan.toUpperCase()} plan. Please upgrade to continue.`, limit, plan };
     }
 
     return { allowed: true, limit, plan };

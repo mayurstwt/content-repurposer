@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import dbConnect from "@/lib/db";
 import ApiKey from "@/models/ApiKey";
 import { ProcessInputSchema } from "@/lib/schemas";
@@ -7,10 +6,9 @@ import { createJob } from "@/lib/jobs";
 import { inngest } from "@/inngest/client";
 import { logger } from "@/lib/logger";
 import User from "@/models/User";
-
-function hashKey(key: string) {
-    return crypto.createHash("sha256").update(key).digest("hex");
-}
+import { verifyApiKey } from "@/lib/encryption";
+import mongoose from "mongoose";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
     try {
@@ -24,13 +22,36 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Empty Bearer token." }, { status: 401 });
         }
 
-        const keyHash = hashKey(rawKey);
+        const parts = rawKey.split('_');
+        if (parts.length !== 3 || parts[0] !== 'rp') {
+            return NextResponse.json({ error: "Invalid API Key format." }, { status: 401 });
+        }
+        const keyId = parts[1];
+
+        if (!mongoose.isValidObjectId(keyId)) {
+            return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
+        }
 
         await dbConnect();
-        const apiKeyDoc = await ApiKey.findOne({ keyHash });
+        const apiKeyDoc = await ApiKey.findById(keyId);
 
         if (!apiKeyDoc) {
             return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
+        }
+
+        const isValid = await verifyApiKey(rawKey, apiKeyDoc.keyHash);
+        if (!isValid) {
+            return NextResponse.json({ error: "Invalid API Key." }, { status: 401 });
+        }
+
+        // Add rate limit
+        if (rateLimit) {
+            const { success, reset } = await rateLimit.limit(`v1_${apiKeyDoc.userId}`);
+            if (!success) {
+                const msBeforeReset = Math.max(0, reset - Date.now());
+                const minutes = Math.ceil(msBeforeReset / 60000);
+                return NextResponse.json({ error: `API Rate limit exceeded. Please try again in ${minutes} minutes.` }, { status: 429 });
+            }
         }
 
         // Update last used asynchronously

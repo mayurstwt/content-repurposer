@@ -4,21 +4,21 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function analyzeTranscript(transcript: string, options?: { tone?: string, audience?: string }) {
-    const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
-    const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
+  const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
+  const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
 
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        generationConfig: {
-            temperature: 0.4,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 8192,
-            responseMimeType: 'application/json',
-        },
-    });
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      temperature: 0.4,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+      responseMimeType: 'application/json',
+    },
+  });
 
-    const prompt = `
+  const prompt = `
 You are an expert viral content strategist in 2026.
 
 ${toneTarget}
@@ -46,32 +46,33 @@ Analyze the transcript and output strict JSON only (no extra text):
 }
   `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const jsonText = response.text();
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const jsonText = response.text();
 
-    try {
-        return JSON.parse(jsonText);
-    } catch (e) {
-        console.error('Gemini JSON parse failed:', e);
-        console.error('Raw JSON:', jsonText);
-        throw new Error('Invalid JSON from Gemini');
-    }
+  try {
+    const text = jsonText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('Gemini JSON parse failed:', e);
+    console.error('Raw JSON:', jsonText);
+    throw new Error('Invalid JSON from Gemini');
+  }
 }
 
 export async function generatePlatformOutputs(analysis: any, transcript: string, options?: { tone?: string, audience?: string }) {
-    const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
-    const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
+  const toneTarget = options?.tone ? `Target Tone: ${options.tone}` : '';
+  const audienceTarget = options?.audience ? `Target Audience: ${options.audience}` : '';
 
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-2.5-flash',
-        generationConfig: {
-            temperature: 0.7,
-            responseMimeType: 'application/json',
-        },
-    });
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      temperature: 0.7,
+      responseMimeType: 'application/json',
+    },
+  });
 
-    const prompt = `
+  const prompt = `
 Using this analysis and transcript:
 
 ${toneTarget}
@@ -112,15 +113,16 @@ Generate platform-optimized content as strict JSON:
 }
   `;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const jsonText = response.text();
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const jsonText = response.text();
 
-    try {
-        return JSON.parse(jsonText);
-    } catch (e) {
-        console.error('Gemini outputs parse failed:', e);
-        console.error('Raw JSON outputs:', jsonText);
-        throw new Error('Invalid JSON from Gemini');
-    }
+  try {
+    const text = jsonText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('Gemini outputs parse failed:', e);
+    console.error('Raw JSON outputs:', jsonText);
+    throw new Error('Invalid JSON from Gemini');
+  }
 }
